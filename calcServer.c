@@ -8,10 +8,13 @@
 /* buffer size for reading lines of input from user */
 #define LINEBUF_SIZE 1024
 
+volatile int shut_down = 0;
+
 struct ConnInfo {
   int clientfd;
   struct Calc *record;
   sem_t *pthread_num;
+  sem_t *stop;
 };
 
 
@@ -34,26 +37,38 @@ int main(int argc, char **argv) {
   int serverfd = open_listenfd((char*) port); // create server socket
   if (serverfd < 0) fatal();
 
-  sem_t *max_pthread_num = 2;
+  int max_iterms = 99999;
+  
+  sem_t max_pthread;
+ 
+  sem_init(&max_pthread,0 ,max_iterms);
+ 
+  
   struct Calc *calc = calc_create();
   
-  while (1) {
+  while (!shut_down) {
     int clientfd = Accept(serverfd, NULL, NULL);
     if (clientfd < 0) {
       fatal("Error accepting client connection");
     }
-    
+
+   
     struct ConnInfo *info = malloc(sizeof(struct ConnInfo));
     info->clientfd = clientfd;
     info->record = calc;
-    info->pthread_num = max_pthread_num;
+    info->pthread_num = &max_pthread;
       
     pthread_t thr_id;
     if (pthread_create(&thr_id, NULL, worker, info) != 0) {
       fatal("pthread_create failed");
     }
   }
-  
+  int sval;
+  sem_getvalue(&max_pthread, &sval);
+  while (sval != max_iterms) {
+    sem_getvalue(&max_pthread, &sval);
+  }
+  close(serverfd);
   calc_destroy(calc);
   return 0;
 }
@@ -61,9 +76,15 @@ int main(int argc, char **argv) {
 void *worker(void *arg) {
   struct ConnInfo *info = arg;
   pthread_detach(pthread_self());
+
+  sem_wait(info->pthread_num);
+ 
   chat_with_client(info->record, info->clientfd, info->clientfd);
   close(info->clientfd);
   free(info);
+
+  sem_post(info->pthread_num);
+  
   return NULL;
 }
 
@@ -94,8 +115,8 @@ void chat_with_client(struct Calc *calc, int infd, int outfd) {
       done = 1;
     } else if (strcmp(linebuf, "shutdown\n") == 0 || strcmp(linebuf, "shutdown\r\n") == 0) {
       /* shutdown */
-      calc_destroy(calc);
-      exit(0);
+      done = 1;
+      shut_down = 1;
     } else if (strcmp(linebuf, "quit\n") == 0 || strcmp(linebuf, "quit\r\n") == 0) {
       /* quit command */
       done = 1;
