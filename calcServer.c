@@ -11,7 +11,9 @@
 struct ConnInfo {
   int clientfd;
   struct Calc *record;
+  sem_t *pthread_num;
 };
+
 
 void *worker(void *arg);
 
@@ -31,7 +33,8 @@ int main(int argc, char **argv) {
   
   int serverfd = open_listenfd((char*) port); // create server socket
   if (serverfd < 0) fatal();
-  
+
+  sem_t *max_pthread_num = 2;
   struct Calc *calc = calc_create();
   
   while (1) {
@@ -43,7 +46,8 @@ int main(int argc, char **argv) {
     struct ConnInfo *info = malloc(sizeof(struct ConnInfo));
     info->clientfd = clientfd;
     info->record = calc;
-    
+    info->pthread_num = max_pthread_num;
+      
     pthread_t thr_id;
     if (pthread_create(&thr_id, NULL, worker, info) != 0) {
       fatal("pthread_create failed");

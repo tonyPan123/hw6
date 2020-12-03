@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <pthread.h> 
 
 typedef std::unordered_map<std::string, int> VariableList;
 
@@ -16,7 +17,7 @@ struct Calc {
 // implementation of Calc
 class CalcImpl : public Calc {
 public:
-    CalcImpl () {
+  CalcImpl () {
       pthread_mutex_init(&lock, NULL);
     }
     ~CalcImpl () {
@@ -24,11 +25,9 @@ public:
     }
     int evalExpr(const char *expr, int *result);
 private:
-  
     VariableList varlist;
     pthread_mutex_t lock;
 
-    
     bool parse_op(std::string token, char *result);
     bool parse_operand(std::string token, int *result);
     bool evaluate(std::vector<std::string> tokens, int *result);
@@ -51,12 +50,12 @@ bool has_only_digits(const std::string s){
 }
 
 bool is_integer(const std::string s) {
-    if (s.empty()) return false;
-    if (s[0] == '-') {
-        return has_only_digits(s.substr(1));
-    } else {
-        return has_only_digits(s);
-    }
+  if (s.empty()) return false;
+  if (s[0] == '-') {
+    return has_only_digits(s.substr(1));
+  } else {
+    return has_only_digits(s);
+  }
 }
 
 bool has_only_alpha(const std::string s){
@@ -65,7 +64,8 @@ bool has_only_alpha(const std::string s){
 
 // Helper function to parse a single operand
 bool CalcImpl::parse_operand(std::string token, int *result) {
-    // Integer
+  
+  // Integer
     if (is_integer(token)) {
         *result = std::stoi(token);
         return true;
@@ -73,14 +73,13 @@ bool CalcImpl::parse_operand(std::string token, int *result) {
 
     // Variable
     if (has_only_alpha(token)) {
-        pthread_mutex_lock(&lock);
-        if (varlist.find(token) == varlist.end()) {
-	  //variable is undefined
-	  pthread_mutex_unlock(&lock);
-	  return false; 
-	}
+     
+      if (varlist.find(token) == varlist.end()) {
+
+	return false;
+      } // variable is undefined
         *result = varlist[token];
-	pthread_mutex_unlock(&lock);
+	
         return true;
     }
 
@@ -111,7 +110,8 @@ bool CalcImpl::evaluate(std::vector<std::string> tokens, int *result) {
         } 
         else return false;
     } else if (tokens.size() == 3) {
-        // [operand op operand]
+      
+      // [operand op operand]
         if (parse_operand(tokens[0], &operand1) && 
             parse_op(tokens[1], &op) && 
             parse_operand(tokens[2], &operand2)) {
@@ -142,9 +142,9 @@ int CalcImpl::evalExpr(const char *expr, int *result) {
     std::string expr_str(expr);
     std::vector<std::string> tokens = tokenize(expr_str);
     std::string equality_sign("=");
-
+ 
     if (std::find(tokens.begin(), tokens.end(), equality_sign) == tokens.end()) {
-        // not an assignment operation
+       // not an assignment operation
         return evaluate(tokens, result);
     } else {
         // is an assignment operation
@@ -155,14 +155,18 @@ int CalcImpl::evalExpr(const char *expr, int *result) {
             // get subvector starting at index 2
             new_tokens.push_back(tokens[i]);
         }
+
         int temp_result;
         // treat the subvector as a non-assigment operation fisrt
         // then do assignment if there is a valid result
+	 pthread_mutex_lock(&lock);
         if (evaluate(new_tokens, &temp_result)) {
-	    pthread_mutex_lock(&lock);
-            varlist[tokens[0]] = temp_result; // assign to varlist
-            *result = temp_result;
+	 
+
+	     varlist[tokens[0]] = temp_result; // assign to varlist
 	    pthread_mutex_unlock(&lock);
+            *result = temp_result;
+	    
             return true;
         }
         else return false;
