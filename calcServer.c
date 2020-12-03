@@ -4,17 +4,19 @@
 #include <stdio.h>      /* for snprintf */
 #include "csapp.h"
 #include "calc.h"
+#include <sys/select.h>
 
 /* buffer size for reading lines of input from user */
 #define LINEBUF_SIZE 1024
 
 volatile int shut_down = 0;
+sem_t max_pthread;
+
 
 struct ConnInfo {
   int clientfd;
   struct Calc *record;
-  sem_t *pthread_num;
-  sem_t *stop;
+ 
 };
 
 
@@ -37,39 +39,52 @@ int main(int argc, char **argv) {
   int serverfd = open_listenfd((char*) port); // create server socket
   if (serverfd < 0) fatal();
 
-  int max_iterms = 99999;
+  int max_iterms = 1;
   
-  sem_t max_pthread;
+  //  sem_t max_pthread;
  
   sem_init(&max_pthread,0 ,max_iterms);
  
   
   struct Calc *calc = calc_create();
+
+  struct timeval timeout = {1,0};
+  //timeout.tv_sec = 1;
+
+  int maxfd = serverfd;
+  fd_set readfds;
   
   while (!shut_down) {
-    int clientfd = Accept(serverfd, NULL, NULL);
-    if (clientfd < 0) {
-      fatal("Error accepting client connection");
-    }
-
-   
-    struct ConnInfo *info = malloc(sizeof(struct ConnInfo));
-    info->clientfd = clientfd;
-    info->record = calc;
-    info->pthread_num = &max_pthread;
+    FD_SET(serverfd, &readfds);
+    select(maxfd + 1, &readfds, NULL, NULL, &timeout);
+    if (FD_ISSET(serverfd, &readfds)) {
       
-    pthread_t thr_id;
-    if (pthread_create(&thr_id, NULL, worker, info) != 0) {
-      fatal("pthread_create failed");
+      
+      int clientfd = Accept(serverfd, NULL, NULL);
+      if (clientfd < 0) {
+	fatal("Error accepting client connection");
+      }
+      
+      
+      struct ConnInfo *info = malloc(sizeof(struct ConnInfo));
+      info->clientfd = clientfd;
+      info->record = calc;
+     
+      
+      pthread_t thr_id;
+      sem_wait(&max_pthread);
+      if (pthread_create(&thr_id, NULL, worker, info) != 0) {
+	fatal("pthread_create failed");
+      }
     }
   }
-  int sval;
-  sem_getvalue(&max_pthread, &sval);
-  while (sval != max_iterms) {
-    sem_getvalue(&max_pthread, &sval);
+ 
+  for (int i = 1; i <=  max_iterms;i++) {
+    sem_wait(&max_pthread);
   }
   close(serverfd);
   calc_destroy(calc);
+  sem_destroy(&max_pthread);
   return 0;
 }
 
@@ -77,13 +92,13 @@ void *worker(void *arg) {
   struct ConnInfo *info = arg;
   pthread_detach(pthread_self());
 
-  sem_wait(info->pthread_num);
+  
  
   chat_with_client(info->record, info->clientfd, info->clientfd);
   close(info->clientfd);
   free(info);
 
-  sem_post(info->pthread_num);
+  sem_post(&max_pthread);
   
   return NULL;
 }
