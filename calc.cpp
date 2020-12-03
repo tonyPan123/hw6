@@ -18,14 +18,17 @@ class CalcImpl : public Calc {
 public:
     CalcImpl () {
       pthread_mutex_init(&lock, NULL);
-    }  
-  int evalExpr(const char *expr, int *result);
+    }
+    ~CalcImpl () {
+      pthread_mutex_destroy(&lock);
+    }
+    int evalExpr(const char *expr, int *result);
 private:
   
     VariableList varlist;
     pthread_mutex_t lock;
 
-   
+    
     bool parse_op(std::string token, char *result);
     bool parse_operand(std::string token, int *result);
     bool evaluate(std::vector<std::string> tokens, int *result);
@@ -70,8 +73,14 @@ bool CalcImpl::parse_operand(std::string token, int *result) {
 
     // Variable
     if (has_only_alpha(token)) {
-        if (varlist.find(token) == varlist.end()) return false; // variable is undefined
+        pthread_mutex_lock(&lock);
+        if (varlist.find(token) == varlist.end()) {
+	  //variable is undefined
+	  pthread_mutex_unlock(&lock);
+	  return false; 
+	}
         *result = varlist[token];
+	pthread_mutex_unlock(&lock);
         return true;
     }
 
@@ -150,8 +159,10 @@ int CalcImpl::evalExpr(const char *expr, int *result) {
         // treat the subvector as a non-assigment operation fisrt
         // then do assignment if there is a valid result
         if (evaluate(new_tokens, &temp_result)) {
+	    pthread_mutex_lock(&lock);
             varlist[tokens[0]] = temp_result; // assign to varlist
             *result = temp_result;
+	    pthread_mutex_unlock(&lock);
             return true;
         }
         else return false;
