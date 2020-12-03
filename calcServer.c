@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
   int serverfd = open_listenfd((char*) port); // create server socket
   if (serverfd < 0) fatal();
 
-  int max_iterms = 1;
+  int max_iterms = 99999;
   
   //  sem_t max_pthread;
  
