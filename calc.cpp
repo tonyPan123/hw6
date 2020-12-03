@@ -16,9 +16,16 @@ struct Calc {
 // implementation of Calc
 class CalcImpl : public Calc {
 public:
-    int evalExpr(const char *expr, int *result);
+    CalcImpl () {
+      pthread_mutex_init(&lock, NULL);
+    }  
+  int evalExpr(const char *expr, int *result);
 private:
+  
     VariableList varlist;
+    pthread_mutex_t lock;
+
+   
     bool parse_op(std::string token, char *result);
     bool parse_operand(std::string token, int *result);
     bool evaluate(std::vector<std::string> tokens, int *result);
