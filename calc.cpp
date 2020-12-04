@@ -169,7 +169,10 @@ int CalcImpl::evalExpr(const char *expr, int *result) {
 	    
             return true;
         }
-        else return false;
+        else {
+            pthread_mutex_unlock(&lock);
+            return false;
+        }
     }
 }
 

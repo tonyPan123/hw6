@@ -40,11 +40,7 @@ int main(int argc, char **argv) {
   if (serverfd < 0) fatal();
 
   int max_iterms = 99999;
-  
-  //  sem_t max_pthread;
- 
   sem_init(&max_pthread,0 ,max_iterms);
- 
   
   struct Calc *calc = calc_create();
 
