@@ -1,0 +1,9 @@
+To ensure the integrity of shared data, two kinds of synchronization methods are used.
+
+First, we can see that different threads uses the same instance of the varlist data structure, which stores information about current variables of the calculator. This is necessary because we want to achieve the communication between clients by using a single Calc instance across different client connections. Since the client is allowed to add or modify the variables, it might be the case that multiple client threads tries to modify the varlist data structure within the Calc struct simultaneously. Thus synchronization is needed here.
+
+We use a mutex lock to achieve synchronization here. The implementation of the calculator, i.e. the class CalcImpl, has a mutex (pthread_mutex_t lock;) as one of the member variables. When initializing the CalcImpl class, pthread_mutex_init is called to initialize the mutex lock. Similarly, pthread_mutex_destroy is called in the destructor of CalcImpl to destroy the lock.
+
+Note that if a thread is only looking at, but not modifying the shared varlist data structure, there is no possibility of simultaneous modification so we don't need synchronization. So the only critical section is when a thread tries to make an assignment to some variable in the varlist data structure. This happens in the evalExpr function, at the statement: "varlist[tokens[0]] = temp_result;". We lock the mutex using the statement "pthread_mutex_lock(&lock);" before modifying varlist and unlock the mutex right after we finish modifying the varlist, using the statement "pthread_mutex_unlock(&lock);".
+
+By doing this, if two threads are trying to change varlist simultaneous, the thread that locks the mutex slightly earlier will first modify varlist, and the other thread will have to wait until the mutex lock for the first thread is unlocked to proceed further, thus avoiding simultaneous modification of shared data.

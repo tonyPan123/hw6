@@ -24,7 +24,7 @@ all : $(PROGRAMS)
 
 # Use this target to create solution.zip that you can submit to Gradescope
 solution.zip :
-	zip -9r solution.zip *.c *.cpp *.h Makefile
+	zip -9r solution.zip *.c *.cpp *.h Makefile README.txt
 
 calcTest : calcTest.o calc.o tctest.o
 	$(CXX) -o $@ calcTest.o calc.o tctest.o
