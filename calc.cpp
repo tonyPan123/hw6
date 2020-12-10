@@ -45,44 +45,39 @@ std::vector<std::string> tokenize(const std::string &expr) {
     return vec;
 }
 
-bool has_only_digits(const std::string s){
-  return s.find_first_not_of( "0123456789" ) == std::string::npos;
+bool has_only_digits(const std::string s) {
+    return s.find_first_not_of("0123456789") == std::string::npos;
 }
 
 bool is_integer(const std::string s) {
-  if (s.empty()) return false;
-  if (s[0] == '-') {
-    return has_only_digits(s.substr(1));
-  } else {
-    return has_only_digits(s);
-  }
+    if (s.empty())
+        return false;
+    if (s[0] == '-')
+        return has_only_digits(s.substr(1));
+    else
+        return has_only_digits(s);
 }
 
 bool has_only_alpha(const std::string s){
-  return s.find_first_not_of( "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" ) == std::string::npos;
+  return s.find_first_not_of(\
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")==std::string::npos;
 }
 
 // Helper function to parse a single operand
 bool CalcImpl::parse_operand(std::string token, int *result) {
-  
-  // Integer
+    // Integer
     if (is_integer(token)) {
         *result = std::stoi(token);
         return true;
     }
-
     // Variable
     if (has_only_alpha(token)) {
-     
-      if (varlist.find(token) == varlist.end()) {
-
-	return false;
-      } // variable is undefined
+        if (varlist.find(token) == varlist.end()) {
+	        return false;
+        } // variable is undefined
         *result = varlist[token];
-	
         return true;
     }
-
     // Mixed number and alpha, not allowed
     return false;
 }
@@ -142,14 +137,16 @@ int CalcImpl::evalExpr(const char *expr, int *result) {
     std::string expr_str(expr);
     std::vector<std::string> tokens = tokenize(expr_str);
     std::string equality_sign("=");
- 
-    if (std::find(tokens.begin(), tokens.end(), equality_sign) == tokens.end()) {
-       // not an assignment operation
+
+    if (std::find(tokens.begin(), tokens.end(), equality_sign)==tokens.end()) {
+        // not an assignment operation
         return evaluate(tokens, result);
     } else {
         // is an assignment operation
-        if (tokens.size() < 3) return false;
-        if (!has_only_alpha(tokens[0]) || tokens[1] != equality_sign) return false;
+        if (tokens.size() < 3)
+            return false;
+        if (!has_only_alpha(tokens[0]) || tokens[1] != equality_sign)
+            return false;
         std::vector<std::string> new_tokens;
         for (unsigned i = 2; i < tokens.size(); i++) {
             // get subvector starting at index 2
@@ -159,14 +156,11 @@ int CalcImpl::evalExpr(const char *expr, int *result) {
         int temp_result;
         // treat the subvector as a non-assigment operation fisrt
         // then do assignment if there is a valid result
-	 pthread_mutex_lock(&lock);
-        if (evaluate(new_tokens, &temp_result)) {
-	 
-
-	     varlist[tokens[0]] = temp_result; // assign to varlist
-	    pthread_mutex_unlock(&lock);
+        pthread_mutex_lock(&lock);
+        if (evaluate(new_tokens, &temp_result)){
+            varlist[tokens[0]] = temp_result; // assign to varlist
+            pthread_mutex_unlock(&lock);
             *result = temp_result;
-	    
             return true;
         }
         else {
